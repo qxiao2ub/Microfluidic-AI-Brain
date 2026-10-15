@@ -1,186 +1,143 @@
-# Microfluidic Droplet AI
+# Microfluidic Droplet AI — Streamlit (Fixed GitHub Edition)
 
-A GitHub-ready Streamlit prototype for analyzing and predicting microfluidic emulsion-droplet behavior from experimental tabular data.
+**Status:** The Streamlit `ModuleNotFoundError: No module named 'src'` issue has been removed by integrating all model routines directly into `app.py`. This app does **not** import a local `src` or `microfluidic_core` module. It can be deployed from a standard, flat GitHub repository containing `app.py` and the files below.
 
-The app trains a multi-output ensemble model from the included `Comprehensive_normalized.xlsx` dataset and provides:
+Microfluidic Droplet AI is a research prototype built from the supplied experimental tabular data. It analyzes microfluidic emulsion droplet measurements and predicts droplet characteristics from geometry, viscosity and flow-related inputs using an ExtraTrees machine-learning ensemble. It also provides experimental-condition recommendation tools. The supplied Colab notebook supports deeper ML and TensorFlow/Keras DNN experiments.
 
-- prediction of observed droplet diameter, normalized droplet diameter, and observed generation rate;
-- model-performance and feature-importance views;
-- single-condition and batch prediction;
-- ensemble-based uncertainty indicators;
-- inverse design that recommends candidate operating conditions for desired outputs;
-- data visualization and correlation exploration;
-- an optional Colab notebook for machine learning and deep neural network experiments.
+> **Important:** This dataset does not contain an explicit single-emulsion versus double-emulsion class label. The model currently predicts tabular droplet properties; it cannot reliably identify emulsion type or guarantee improvements for new devices, formulations, biology workflows, or clinical use without additional labeled experimental data and validation.
 
-> **Research-use notice:** This repository is a prototype. Predictions and recommendations must be experimentally validated before industrial, biological, medical, clinical, safety-critical, or regulatory use.
+## Download ZIP structure
 
-## Repository structure
+Unzip and **upload the contents** to your GitHub repository root; do not upload the `.zip` as one file, and do not place the contents under an extra nested folder.
 
 ```text
-microfluidic-droplet-ai-streamlit/
-├── app.py
-├── requirements.txt
-├── README.md
-├── .gitignore
-├── .streamlit/
-│   └── config.toml
-├── data/
-│   ├── Comprehensive_normalized.xlsx
-│   └── sample_batch_input.csv
-├── notebooks/
-│   └── microfluidic_ai_brain_colab.ipynb
-└── src/
-    ├── __init__.py
-    └── microfluidic_core.py
+app.py                              <-- Streamlit Cloud entrypoint (self-contained)
+requirements.txt                    <-- dependency installation
+README.md                           <-- this guide
+.gitignore
+.github/
+  workflows/
+    smoke-test.yml              <-- GitHub Actions smoke tests
+.streamlit/
+  config.toml
+data/
+  Comprehensive_normalized.xlsx    <-- included measured training data
+  Comprehensive_normalized.csv     <-- identical training data, fallback CSV
+  sample_batch_input.csv           <-- sample scoring data
+tests/
+  test_smoke.py                    <-- model and deployment checks
+  test_ui_entrypoint.py            <-- UI smoke checks
+notebooks/
+  microfluidic_ai_brain_colab.ipynb <-- advanced Colab ML/DNN training
 ```
 
-## Run locally
+**There is no `src/` dependency.** If you see the error `No module named 'src'` after deployment, the deployed app is still using an **old** `app.py` from the wrong repository or branch. Open the `app.py` in GitHub and verify it no longer says `from src.microfluidic_core import ...`.
 
-Python 3.12 is recommended.
+## Update your existing GitHub repository
+
+The screenshot showed repository `qxiao2ub/microfluidic-ai-brain`, branch `main`, and Streamlit entrypoint `app.py`.
+
+**Option A — GitHub web upload (easiest):**
+
+1. Extract the ZIP on your computer.
+2. Open the target GitHub repository and ensure you are on the `main` branch.
+3. Click **Add file → Upload files**. Drag the **extracted contents** (files AND the `data/`, `.streamlit/`, and `notebooks/` folders), maintaining their paths. If GitHub's web interface does not preserve your folder structure, use the Git method below instead.
+4. Verify that the repository root directly contains `app.py`, `requirements.txt`, and `README.md`, and `data/Comprehensive_normalized.xlsx` exists.
+5. Commit the changes, including replacing the old `app.py`.
+6. Open your deployed Streamlit app; use **Manage app → Reboot** if changes have not appeared yet.
+
+**Option B — Git (recommended for complete folder updates):**
+
+Clone the existing repository, copy **all extracted ZIP contents** into that repository, remove any obsolete `src` directory (optional), and run:
+
+```bash
+git add -A
+git commit -m "Fix Streamlit src import; use standalone app"
+git push origin main
+```
+
+If Git reports a non-fast-forward error, fetch/pull your remote changes first instead of forcing a push.
+
+## Deploy to Streamlit Community Cloud
+
+1. Visit https://share.streamlit.io/ and click **Create app** (or open your existing app's settings).
+2. Repository: `qxiao2ub/microfluidic-ai-brain` (or your newly created repository).
+3. Branch: `main`.
+4. **Main file path: `app.py`** (NOT `src/app.py`, NOT `microfluidic-droplet-ai-streamlit/app.py`).
+5. In Advanced settings, Python **3.12** is recommended for stable third-party package compatibility; supported recent versions also work when the pinned wheels are available.
+6. Deploy. On a previously deployed app, code updates usually redeploy automatically; reboot if necessary.
+
+**Python version caution:** Streamlit Community Cloud requires re-deploying the app to change Python versions for an existing deployment. Changing `requirements.txt` alone does not change the Python interpreter.
+
+## Local launch
+
+Install Python 3.12+ and run in the folder containing `app.py`:
 
 ```bash
 python -m venv .venv
-```
-
-Activate the environment:
-
-**Windows PowerShell**
-
-```powershell
-.venv\Scripts\Activate.ps1
-```
-
-**macOS or Linux**
-
-```bash
-source .venv/bin/activate
-```
-
-Install dependencies and launch the app:
-
-```bash
+# Windows PowerShell: .venv\Scripts\Activate.ps1
+# macOS/Linux: source .venv/bin/activate
 python -m pip install --upgrade pip
-pip install -r requirements.txt
-streamlit run app.py
+python -m pip install -r requirements.txt
+python -m streamlit run app.py
 ```
 
-The local browser address is normally `http://localhost:8501`.
+Local URL: http://localhost:8501
 
-## Upload to GitHub
+## What the website does
 
-1. Extract this ZIP file.
-2. Create a new GitHub repository.
-3. Upload all extracted files and folders, keeping the same directory structure.
-4. Commit the files to the repository's main branch.
+- **Overview**: trained-row count, detected process inputs, feature importance, random 80/20 holdout R², RMSE, MAE, and comparison scatterplots.
+- **Single prediction**: propose microfluidic settings and predict three recorded outputs (when present), with ensemble disagreement indicators.
+- **Batch prediction**: upload multiple operating conditions in CSV/XLSX and export predictions.
+- **Inverse design**: sample and rank candidate operating conditions for target properties within independently observed ranges (not guaranteed mutually feasible).
+- **Data explorer**: scatterplots, correlations, and cleaned experimental records.
+- **Method & safety**: methods, validation limitations, and field descriptions.
+- **Replacement training data**: upload your own CSV/XLSX to retrain the cached model.
 
-Command-line alternative:
+**Model targets** from the uploaded data:
+
+1. `Observed droplet diameter (um)`
+2. `Normalized droplet diameter`
+3. `Observed generation rate (Hz)`
+
+**Example input features:** Orifice width, normalized channel depth, flow rate ratio, capillary number, normalized inlet/outlet measures, viscosity ratio, channel depth, hydraulic diameter, dispersed flow rate.
+
+## Machine learning and DNN methodology
+
+The Streamlit site deliberately uses a quickly trainable scikit-learn ExtraTrees regressor, fitted from the bundled 868 measurement rows. The code uses physics-inspired interaction features, median imputation, and a random train/test holdout for demonstrative model evaluation. It refits a final ensemble on all available complete training rows for deployment inference. Training is cached by dataset contents for responsive repeat usage.
+
+Use `notebooks/microfluidic_ai_brain_colab.ipynb` in free Google Colab for additional algorithm comparisons, cross-validation, optional hyperparameter tuning, and deep-neural-network experiments (TensorFlow/Keras). The DNN is **not deployed by default** in the Streamlit app, keeping startup memory and dependencies light. A neural network does not automatically think or make clinical decisions like a person.
+
+## Interpreting predictions responsibly
+
+- **Predictions are conditional estimates**, not time-series forecasting or evidence of causality.
+- An 80/20 random holdout split may overestimate out-of-sample performance when many rows share device geometries, experiments, or fluid systems.
+- Ensemble tree disagreement is a heuristic, **not** a calibrated statistical confidence interval.
+- Independent parameter sampling can generate incompatible physical settings; validate all inverse-design candidates before use.
+- To distinguish single and double emulsions, provide explicit emulsion-type labels (and ideally images, particle-size distributions, phase composition, and operating regime data).
+- Production deployments for biotech, microfluidic manufacturing, or medical purposes require external cross-device and cross-lab validation, access controls, reproducibility, experiment metadata, monitoring, and domain-expert review.
+- Do **not** use this prototype to guide patient treatment, regulated diagnostics, or safety-critical production without independent validation and appropriate review.
+
+## Common deployment problems
+
+| Symptom | Resolution |
+| --- | --- |
+| `ModuleNotFoundError: No module named 'src'` | Replace the deployed root `app.py` with the new self-contained file; verify repository/branch/path. |
+| `FileNotFoundError: data/Comprehensive_normalized.xlsx` | Upload the entire `data/` directory, or upload your own training CSV/XLSX in the app sidebar. |
+| `ModuleNotFoundError: sklearn` / `openpyxl` | Ensure `requirements.txt` is in the same repository root as `app.py`, commit, and reboot/redeploy. |
+| App still displays the old traceback | Verify GitHub branch and Streamlit main file; check latest commit hash and reboot the app. |
+| Slow cold start | The initial launch trains an ensemble; cached reruns are faster. |
+
+## Development and verification
+
+Smoke tests are included under `tests/`, and a GitHub Actions workflow runs them after pushes to `main`. They validate the bundled training data, ensemble predictions, uncertainty output, inverse design, self-contained imports, and UI-tab initialization using an API stand-in. They do not replace an external hosted Streamlit end-to-end test. For local testing after installing dependencies:
 
 ```bash
-git init
-git add .
-git commit -m "Initial microfluidic droplet AI Streamlit app"
-git branch -M main
-git remote add origin YOUR_GITHUB_REPOSITORY_URL
-git push -u origin main
+python -m pytest -q
 ```
 
-## Deploy on Streamlit Community Cloud
+Install `pytest` separately for development: `python -m pip install pytest`.
 
-1. Open [Streamlit Community Cloud](https://share.streamlit.io/).
-2. Choose **Create app** and connect the GitHub repository.
-3. Select the repository and branch.
-4. Set the entrypoint file to `app.py`.
-5. In **Advanced settings**, select Python 3.12.
-6. Deploy the app.
+## Further development
 
-The root-level `requirements.txt` declares all Python dependencies. Streamlit Community Cloud copies the repository and runs the selected entrypoint from the repository root. Official deployment references:
-
-- [Deploy an app](https://docs.streamlit.io/deploy/streamlit-community-cloud/deploy-your-app/deploy)
-- [App dependencies](https://docs.streamlit.io/deploy/streamlit-community-cloud/deploy-your-app/app-dependencies)
-- [File organization](https://docs.streamlit.io/deploy/streamlit-community-cloud/deploy-your-app/file-organization)
-
-## Included data schema
-
-The supplied workbook contains 869 rows including the header and the following primary input variables:
-
-- Orifice width (um)
-- Normalized channel depth
-- Flow rate ratio
-- Capillary number
-- Normalized continuous inlet
-- Normalized dispersed inlet
-- Normalized outlet width
-- viscosity ratio
-- Channel Depth
-- Hydraulic diameter
-- Dispersed flow rate ul/h
-
-Default prediction targets are:
-
-- Observed droplet diameter (um)
-- Normalized droplet diameter
-- Observed generation rate (Hz)
-
-The `Experiment` column is treated as an identifier and is excluded from model inputs. Empty separator columns are removed automatically.
-
-## Model workflow
-
-1. Clean column names and remove empty rows or columns.
-2. Detect numeric process inputs and droplet-output targets.
-3. Add physics-inspired interaction features when the expected source columns are present.
-4. Split the dataset into 80% training and 20% holdout data.
-5. Evaluate an `ExtraTreesRegressor` multi-output ensemble.
-6. Refit the deployment model on all complete training rows.
-7. Compute uncertainty indicators from variation across ensemble trees.
-8. Search candidate inputs within observed ranges for inverse-design recommendations.
-
-The Streamlit app deliberately uses a lightweight ensemble instead of TensorFlow so that Community Cloud startup remains practical. The Colab notebook in `notebooks/` includes the optional deep neural network workflow.
-
-## Use a replacement training dataset
-
-Use the training-data uploader in the app's sidebar. Supported formats are CSV, XLSX, and XLSM.
-
-For automatic target detection, retain the default target names or use descriptive names containing:
-
-- `observed`, `droplet`, and `diameter`;
-- `normalized`, `droplet`, and `diameter`;
-- `observed`, `generation`, and `rate`.
-
-A replacement dataset should contain at least two numeric input features and approximately 30 or more complete rows. More data, independent experiments, and external validation are strongly recommended for serious use.
-
-## Batch prediction
-
-The app provides a downloadable batch-input template. Fill one row per proposed operating condition, preserve the required input-column names, and upload the completed CSV or Excel file in the **Batch Prediction** tab.
-
-A populated example is included at `data/sample_batch_input.csv`.
-
-## Colab notebook
-
-Open `notebooks/microfluidic_ai_brain_colab.ipynb` in Google Colab for:
-
-- broader machine-learning model comparison;
-- optional hyperparameter tuning;
-- cross-validation and error analysis;
-- TensorFlow/Keras deep neural network training;
-- model export and additional prototype generation.
-
-Upload `data/Comprehensive_normalized.xlsx` to the Colab session when prompted, or mount Google Drive and update the notebook's data path.
-
-## Limitations
-
-- Holdout metrics come from the supplied dataset and may be optimistic when experimental conditions are highly related.
-- Random train/test splitting does not prove generalization to a new device geometry, fluid chemistry, laboratory, or production line.
-- The uncertainty value is an ensemble-disagreement indicator, not a calibrated confidence interval.
-- Inverse design samples only inside observed feature ranges but can still recommend physically incompatible combinations when variables are constrained jointly in the real system.
-- The app does not currently model images, videos, time-dependent behavior, rare failures, sterility, biocompatibility, toxicity, or regulatory compliance.
-- Medical and biological use requires governance, traceability, validation protocols, and expert review.
-
-## Recommended next steps
-
-- add independent validation datasets from different devices and laboratories;
-- add explicit labels for single-emulsion and double-emulsion regimes;
-- use group-aware validation by device, paper, batch, or laboratory;
-- add fluid-property and surfactant descriptors;
-- calibrate uncertainty and define out-of-domain thresholds;
-- constrain inverse design with engineering feasibility rules;
-- add experiment tracking, model versioning, tests, authentication, and audit logs before production use.
+Next worthwhile milestones are domain-aware data-quality checks, emulsion-type labels, group-based validation, independent laboratory test sets, uncertainty calibration, constraints for physics-feasible inverse-design choices, experimental tracking, model versioning, and optional DNN integration after appropriate accuracy/compute benchmarking.
