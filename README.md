@@ -141,3 +141,24 @@ Install `pytest` separately for development: `python -m pip install pytest`.
 ## Further development
 
 Next worthwhile milestones are domain-aware data-quality checks, emulsion-type labels, group-based validation, independent laboratory test sets, uncertainty calibration, constraints for physics-feasible inverse-design choices, experimental tracking, model versioning, and optional DNN integration after appropriate accuracy/compute benchmarking.
+
+## Credits and cumulative visitor counter
+
+**Author:** Siddharth Ashok Kumar  
+**Advisor:** Dr. Qingyang Xiao
+
+The counter is displayed above all tabs and in the sidebar. It increments once per new Streamlit browser session (not on each click, since Streamlit reruns the script on every widget interaction). It counts visits, **not unique people**.
+
+**Important:** A counter that *never resets* cannot be guaranteed using only local files on Streamlit Community Cloud: the filesystem can be replaced when the app restarts or redeploys. No SQL database is used. For durable cross-restart storage, use a private GitHub Gist:
+
+1. Create a **secret Gist** containing a file named `visitor_count.json` with the content `{"count": 0}`. A secret Gist is unlisted, not an access-control mechanism; do not store sensitive information.
+2. Create a fine-grained GitHub personal access token with **Gists: read/write** permission (or a classic token with the `gist` scope). Never commit the token to GitHub.
+3. In Streamlit Community Cloud, open **App settings → Secrets** and add:
+
+   ```toml
+   GITHUB_COUNTER_TOKEN = "YOUR_GITHUB_TOKEN"
+   GITHUB_COUNTER_GIST_ID = "YOUR_GIST_ID"
+   ```
+4. Save and reboot. The count is now stored in the Gist rather than the Streamlit filesystem.
+
+The Gist implementation is suitable for small prototypes. Concurrent visits across multiple app replicas can cause lost increments because GitHub Gist updates are not atomic; use an atomic managed counter service for strict accuracy at scale. Without Gist configuration, the app still works with a **best-effort local file** but cannot promise persistence.

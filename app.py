@@ -395,6 +395,76 @@ def recommend_conditions(
     return result.sort_values("Decision score (lower is better)").head(top_k).reset_index(drop=True)
 
 
+# =========================== VISITOR COUNTER ==============================
+# GitHub Gist storage is optional and durable across Streamlit Cloud restarts.
+# Local file fallback is best-effort only: ephemeral hosting can erase it.
+import json
+import os
+import threading
+import urllib.request
+import urllib.error
+
+_COUNTER_LOCK = threading.Lock()
+_COUNTER_FILE = Path(__file__).resolve().parent / "visitor_count.json"
+
+
+def _counter_secrets():
+    try:
+        return str(st.secrets.get("GITHUB_COUNTER_TOKEN", "")), str(st.secrets.get("GITHUB_COUNTER_GIST_ID", ""))
+    except Exception:
+        return os.getenv("GITHUB_COUNTER_TOKEN", ""), os.getenv("GITHUB_COUNTER_GIST_ID", "")
+
+
+def _gist_request(method, token, gist_id, payload=None):
+    request = urllib.request.Request(
+        "https://api.github.com/gists/" + gist_id,
+        data=json.dumps(payload).encode("utf-8") if payload is not None else None,
+        headers={"Authorization": "Bearer " + token, "Accept": "application/vnd.github+json",
+                 "X-GitHub-Api-Version": "2022-11-28", "User-Agent": "microfluidic-droplet-ai",
+                 "Content-Type": "application/json"}, method=method)
+    with urllib.request.urlopen(request, timeout=8) as response:
+        return json.load(response)
+
+
+def _read_count():
+    token, gist_id = _counter_secrets()
+    if token and gist_id:
+        result = _gist_request("GET", token, gist_id)
+        item = result.get("files", {}).get("visitor_count.json", {})
+        return max(0, int(json.loads(item.get("content", "{}" )).get("count", 0))), "GitHub Gist"
+    try:
+        return max(0, int(json.loads(_COUNTER_FILE.read_text()).get("count", 0))), "local file (not durable on Cloud)"
+    except (OSError, ValueError, TypeError):
+        return 0, "local file (not durable on Cloud)"
+
+
+def _write_count(count):
+    token, gist_id = _counter_secrets()
+    if token and gist_id:
+        _gist_request("PATCH", token, gist_id,
+                      {"files": {"visitor_count.json": {"content": json.dumps({"count": count})}}})
+    else:
+        tmp = _COUNTER_FILE.with_suffix(".tmp")
+        tmp.write_text(json.dumps({"count": count}), encoding="utf-8")
+        tmp.replace(_COUNTER_FILE)
+
+
+def visitor_count():
+    # Count one new Streamlit session, not every rerun, tab switch, or button click.
+    # Gist read-modify-write is not atomic across multiple app replicas; high-volume
+    # deployments need an atomic hosted counter service to avoid lost increments.
+    with _COUNTER_LOCK:
+        if st.session_state.get("visitor_counted", False):
+            return st.session_state.get("visitor_total", 0), st.session_state.get("visitor_store", "")
+        current, store = _read_count()
+        updated = current + 1
+        _write_count(updated)
+        st.session_state["visitor_counted"] = True
+        st.session_state["visitor_total"] = updated
+        st.session_state["visitor_store"] = store
+        return updated, store
+
+
 # ============================= STREAMLIT UI ===============================
 APP_ROOT = Path(__file__).resolve().parent
 DEFAULT_DATA_PATH = APP_ROOT / "data" / "Comprehensive_normalized.xlsx"
@@ -468,7 +538,23 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
+try:
+    total_visitors, counter_store = visitor_count()
+    counter_message = f"Cumulative app visits: {total_visitors:,}"
+except Exception as counter_error:
+    counter_message = "Visit counter temporarily unavailable"
+    counter_store = "error"
+
+# This banner sits above the tabs and is visible on every tab/page.
+st.markdown("**Author:** Siddharth Ashok Kumar  |  **Advisor:** Dr. Qingyang Xiao")
+st.info("👥 " + counter_message)
+if counter_store == "local file (not durable on Cloud)":
+    st.caption("Counter uses local storage. For persistent totals across Streamlit Cloud restarts, configure GitHub Gist secrets (see README).")
+
 with st.sidebar:
+    st.markdown("**Author:** Siddharth Ashok Kumar")
+    st.markdown("**Advisor:** Dr. Qingyang Xiao")
+    st.metric("👥 Cumulative visits", counter_message.split(": ")[-1] if ": " in counter_message else "Unavailable")
     st.header("Training dataset")
     uploaded_training = st.file_uploader(
         "Use a replacement training dataset",
